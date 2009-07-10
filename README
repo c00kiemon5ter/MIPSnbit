@@ -1,0 +1,5 @@
+This is a pipelined mips architecture cpu.
+It uses reduced commands, {lw, sw, add, sub, beq, j}
+Using a 'word_size' variable the code will try to work for either 16(word_size=2) or 32(word_size=4) bit.
+
+play the music..
