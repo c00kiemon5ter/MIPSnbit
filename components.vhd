@@ -56,8 +56,8 @@ end component;
 
 component sign_ext is
 	generic (
-		k : integer := 6;
-	 	n : integer := 16
+		n : integer := 16;
+		k : integer := 6
 	);
 	port (	
 		imm : in std_logic_vector (k-1 downto 0);
@@ -105,16 +105,6 @@ component RegFile is
 		data : in std_logic_vector (n-1 downto 0);
 		rd_address, rs_address, rt_address : in std_logic_vector (k-1 downto 0);
 		rs_out, rt_out : out std_logic_vector (n-1 downto 0)
-	);
-end component;
-
-component compare is
-	generic(
-		n : integer := 16
-	);
-        port (
-		a, b : in std_logic_vector(n-1 downto 0);
-		f : out std_logic
 	);
 end component;
 
@@ -174,7 +164,15 @@ component hazard is
 	);
 end component;
 
-
+component compare is
+	generic(
+		n : integer := 16
+	);
+        port (
+		a, b : in std_logic_vector(n-1 downto 0);
+		f : out std_logic
+	);
+end component;
 
 
 end components;

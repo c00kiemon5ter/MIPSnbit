@@ -2,7 +2,7 @@ LIBRARY IEEE;
 USE IEEE.std_logic_1164.all;
 USE work.components.all;
 
-ENTITY MIPS IS
+ENTITY Processor IS
 	GENERIC(
 		n : INTEGER := 16;
 		addr_size : INTEGER := 3;
@@ -20,10 +20,10 @@ ENTITY MIPS IS
 		toData : out std_logic_vector(n-1 downto 0);		 -- DATA_MEM_IN | eg. sw..
 		DataWriteFlag : out std_logic 				 -- DATA_MEM_Write_access
 	);
-END MIPS;
+END Processor;
 
 
-ARCHITECTURE structure OF MIPS IS
+ARCHITECTURE structure OF Processor IS
 
 component Register_IF_ID is
 	generic (
@@ -39,10 +39,11 @@ end component;
 	signal PCout, nextPC, IF_ID_PC, branch_address, instruction, muxPCout : std_logic_vector(n-1 downto 0);
 	signal pc_carry, PCsrc, IF_ID_Write, updatePC : std_logic;
 	
-	signal data, rs_out, rt_out, extnd, shifted : std_logic_vector(n-1 downto 0);
+	signal write_data, rs_data, rt_data, extnd, shifted : std_logic_vector(n-1 downto 0);
 	signal equal, branch_carry : std_logic;
 	
-	signal RegDst, ALUSrc, MemtoReg, RegWrite, MemRead, MemWrite, Branch, PCupdate, flush : std_logic;
+	signal RegDst, ALUSrc, MemtoReg, RegWrite, MemRead, MemWrite, Branch, PCupdate, reset, flush, ID_EX_MemRead : std_logic;
+	signal ID_EX_RT_address : std_logic_vector(addr_size-1 downto 0);
 	signal ALUop, fls_wb : std_logic_vector(1 downto 0);
 	signal fls_ex : std_logic_vector(3 downto 0);
 	signal fls_mem : std_logic_vector(2 downto 0);
@@ -76,10 +77,10 @@ BEGIN
 	
 	-- our registers
 	RegisterFile : RegFile 	generic map(n, addr_size)
-				port map(clock, RegWrite, data, instruction(n-opcode_size-1 downto n-opcode_size-addr_size), 
+				port map(clock, RegWrite, write_data, instruction(n-opcode_size-1 downto n-opcode_size-addr_size), 
 								instruction(n-opcode_size-addr_size-1 downto n-opcode_size-2*addr_size), 
 								instruction(n-opcode_size-2*addr_size-1 downto n-opcode_size-3*addr_size), 
-								rs_out, rt_out);
+								rs_data, rt_data);
 	-- sign extension for immidiate values
 	sing_extension : sign_ext 	generic map(n,imm_size)
 					port map(instruction(imm_size-1 downto 0), extnd);
@@ -88,7 +89,7 @@ BEGIN
 	-- NOTE: and be slow, lol, that's weak, we are fast, we are too fast,..
 	-- Check if the read-registers' values are the same, that'd be zero in ALU
 	comparator : compare 	generic map(n)
-				port map(rs_out, rt_out, equal);
+				port map(rs_data, rt_data, equal);
 	-- select the next command address according to the previous prediction
 	PCsrcCheck : AndGate 	port map(equal, fls_mem(2), PCsrc); -- fls_mem(2) is Branch
 	-- align the address, shift left logical by two
@@ -107,7 +108,7 @@ BEGIN
 	
 	-- The Control
 	ControlUnit : Control 	generic map(opcode_size)
-				port map(	instruction(n-1 downto opcode_size-1), 
+				port map(	instruction(n-1 downto n-opcode_size), 
 						RegDst, ALUSrc, MemtoReg, RegWrite, MemRead, MemWrite, Branch, ALUop);
 	-- Flush Control 
 	FlushCtrlUnit : FlushCtrl 	port map(	RegWrite & MemtoReg, 
@@ -115,12 +116,10 @@ BEGIN
 							RegDst & ALUop & ALUSrc, 
 							flush, fls_wb, fls_mem, fls_ex);
 	-- Hazard Unit
-	HazardUnit : hazard 	generic map(n)
-				port map(	instruction(n-opcode_size-1 downto n-opcode_size-addr_size), 
+	HazardUnit : hazard 	port map(	instruction(n-opcode_size-1 downto n-opcode_size-addr_size), 
 						instruction(n-opcode_size-addr_size-1 downto n-opcode_size-2*addr_size), 
-						ID_EX_RT, Branch, ID_EX_MemRead, reset, clock, 
-						PCupdate, IF_ID_Write, flush);
-	
+						ID_EX_RT_Address, Branch, ID_EX_MemRead, reset, clock, 
+						PCupdate, PCsrc, IF_ID_Write, flush);
 	
 	
 	

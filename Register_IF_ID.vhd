@@ -23,8 +23,8 @@ begin
 		outPC <= inPC;
       		outInstruction <= inInstruction;
     	elsif clk='1' and IF_Flush='1' then
-      		outPC <= X"00000000";
-      		outInstruction <= X"00000000";
+      		outPC <= (OTHERS => '0');
+      		outInstruction <= (OTHERS => '0');
     	end if;
 end process pc;
 
