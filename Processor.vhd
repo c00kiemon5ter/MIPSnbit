@@ -119,7 +119,7 @@ BEGIN
 	HazardUnit : hazard 	port map(	instruction(n-opcode_size-1 downto n-opcode_size-addr_size), 
 						instruction(n-opcode_size-addr_size-1 downto n-opcode_size-2*addr_size), 
 						ID_EX_RT_Address, Branch, ID_EX_MemRead, reset, clock, 
-						PCupdate, PCsrc, IF_ID_Write, flush);
+						updatePC, PCupdate, IF_ID_Write, flush);
 	
 	
 	
