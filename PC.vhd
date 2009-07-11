@@ -16,7 +16,7 @@ end entity pc;
 architecture behavior of pc is
 begin
 
-pc: process(clk)
+pc: process(clk, pc_write, inPC)
 begin
 	if clk = '1' and pc_write = '1' then     -- rising edge
 		nextPC <= inPC;
