@@ -5,9 +5,12 @@ library ieee;
 use ieee.std_logic_1164.all;
 
 entity Forwarder is
+	generic(
+		addr_size : INTEGER := 3
+	);
 	port (
       		ALUSrc, EX_MEM_regwrite, MEM_WB_regwrite : IN STD_LOGIC;
-      		EX_MEM_rd, MEM_WB_rd, ID_EX_rs, ID_EX_rt : IN STD_LOGIC_VECTOR(2 downto 0);
+      		ID_EX_rs, ID_EX_rt, EX_MEM_rd, MEM_WB_rd : IN STD_LOGIC_VECTOR(addr_size-1 downto 0);
       		SelA, SelB : OUT STD_LOGIC_VECTOR(1 downto 0));
 end entity Forwarder;
 

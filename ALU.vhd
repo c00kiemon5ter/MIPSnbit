@@ -14,7 +14,7 @@ ENTITY ALU IS
 		a, b : in std_logic_vector(n-1 downto 0);
 		func : in std_logic_vector(2 downto 0);
 		zero : out std_logic;
-	    f : out std_logic_vector(n-1 downto 0));
+		f : out std_logic_vector(n-1 downto 0));
 END ALU;
 
 

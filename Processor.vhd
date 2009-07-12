@@ -50,7 +50,21 @@ ARCHITECTURE structure OF Processor IS
 	signal PC_from_ID_EX, rs_data_from_ID_EX, rt_data_from_ID_EX, extended_from_ID_EX : std_logic_vector(n-1 downto 0);
 	signal rs_addr_from_ID_EX, rt_addr_from_ID_EX, rd_addr_from_ID_EX : std_logic_vector(addr_size-1 downto 0);
 	-- Execute use
+	signal ALUresult_to_EX_MEM : std_logic_vector(n-1 downto 0);
+	signal MemtoReg_to_EX_MEM, RegWrite_to_EX_MEM : std_logic;
+	signal zero_to_EX_MEM, Branch_to_EX_MEM, MemRead_to_EX_MEM, MemWrite_to_EX_MEM : std_logic;
+	signal rd_addr_to_EX_MEM : std_logic_vector(addr_size-1 downto 0);
+	-- EX_MEM_Reg
+	signal MemtoReg_from_EX_MEM, RegWrite_from_EX_MEM : std_logic;
+	signal Branch_from_EX_MEM, MemRead_from_EX_MEM, MemWrite_from_EX_MEM : std_logic;
+	signal PC_from_EX_MEM, ALUresult_from_EX_MEM, rt_data_from_EX_MEM : std_logic_vector(n-1 downto 0);
+	signal zero_from_EX_MEM : std_logic;
+	signal rd_addr_from_EX_MEM : std_logic_vector(addr_size-1 downto 0);
 	-- WriteBack use
+	-- MEM_WB_Reg
+	signal data_from_MEM_WB : std_logic_vector(n-1 downto 0);
+	signal rd_addr_from_MEM_WB : std_logic_vector(addr_size-1 downto 0);
+	signal RegWrite_from_MEM_WB : std_logic;
 BEGIN
 
 	FetchStage : Fetch 	generic map(n)
@@ -84,11 +98,29 @@ BEGIN
 							 PC_from_ID_EX, rs_data_from_ID_EX, rt_data_from_ID_EX, extended_from_ID_EX,
 							 rs_addr_from_ID_EX, rt_addr_from_ID_EX, rd_addr_from_ID_EX);
 
---	ExecuteStage : Execute 	generic map()
---				port map;
-	
---	EX_MEM_Register : Register_EX_MEM 	generic map()
---						port map();
+	ExecuteStage : Execute 	generic map(n, addr_size)
+				port map(ALUop_from_ID_EX, ALUSrc_from_ID_EX, RegDst_from_ID_EX, 
+					 MemtoReg_from_ID_EX, RegWrite_from_ID_EX, 
+					 Branch_from_ID_EX, MemRead_from_ID_EX, MemWrite_from_ID_EX, 
+					 extended_from_ID_EX, rs_data_from_ID_EX, rt_data_from_ID_EX,
+					 ALUresult_from_EX_MEM, data_from_MEM_WB, 
+					 rs_addr_from_ID_EX, rt_addr_from_ID_EX, rd_addr_from_ID_EX, 
+					 rd_addr_from_EX_MEM, rd_addr_from_MEM_WB, 
+					 RegWrite_from_EX_MEM, RegWrite_from_MEM_WB, clock,
+					 zero_to_EX_MEM, ALUresult_to_EX_MEM, 
+					 MemtoReg_to_EX_MEM, RegWrite_to_EX_MEM, 
+					 Branch_to_EX_MEM, MemRead_to_EX_MEM, MemWrite_to_EX_MEM,
+					 rd_addr_to_EX_MEM);
+		
+	EX_MEM_Register : Register_EX_MEM 	generic map(n, addr_size)
+						port map(MemtoReg_to_EX_MEM, RegWrite_to_EX_MEM, 
+							 Branch_to_EX_MEM, MemRead_to_EX_MEM, MemWrite_to_EX_MEM,
+							 PC_from_ID_EX, ALUresult_to_EX_MEM, zero_to_EX_MEM, 
+							 rt_data_from_ID_EX, rd_addr_to_EX_MEM, clock, 
+							 MemtoReg_from_EX_MEM, RegWrite_from_EX_MEM,
+							 Branch_from_EX_MEM, MemRead_from_EX_MEM, MemWrite_from_EX_MEM,
+							 PC_from_EX_MEM, ALUresult_from_EX_MEM, zero_from_EX_MEM, 
+							 rt_data_from_EX_MEM, rd_addr_from_EX_MEM);
 
 	-- MemStage ? etc
 

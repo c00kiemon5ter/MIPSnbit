@@ -9,7 +9,7 @@ entity ALUcontrol is
 		n : integer := 16
 	);
 	port (
-		immediate : in std_logic_vector(5 downto 0);
+		extended : in std_logic_vector(n-1 downto 0);
 		ALUop_in : in std_logic_vector(1 downto 0);
 		ALUop_out : out std_logic_vector(2 downto 0)
 	);
@@ -17,7 +17,7 @@ end ALUcontrol;
 
 
 architecture behavior of ALUcontrol is
-	signal func : std_logic_vector(2 downto 0) := immediate(2 downto 0);
+	signal func : std_logic_vector(2 downto 0) := extended(2 downto 0);
 	constant ADD_FUNC : std_logic_vector(2 downto 0) := "000";
 	constant NOT_FUNC : std_logic_vector(2 downto 0) := "101";
 begin

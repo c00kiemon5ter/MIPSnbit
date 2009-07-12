@@ -68,10 +68,13 @@ component sign_ext is
 end component;
 
 component forwarder is
-	port (  
-		rs, rt : in std_logic_vector(2 downto 0);
-        	ex_mem, mem_wb : in std_logic_vector(2 downto 0);
-        	sel_a, sel_b : out std_logic_vector(1 downto 0)
+	generic(
+		addr_size : INTEGER := 3
+	);
+	port (
+      		ALUSrc, EX_MEM_regwrite, MEM_WB_regwrite : IN STD_LOGIC;
+      		ID_EX_rs, ID_EX_rt, EX_MEM_rd, MEM_WB_rd : IN STD_LOGIC_VECTOR(addr_size-1 downto 0);
+      		SelA, SelB : OUT STD_LOGIC_VECTOR(1 downto 0)
 	);
 end component;
 
@@ -173,6 +176,29 @@ component Hazard is
 	);
 end component;
 
+component ALU is
+	generic ( 
+		n : INTEGER := 16
+	);
+	port(
+		a, b : in std_logic_vector(n-1 downto 0);
+		func : in std_logic_vector(2 downto 0);
+		zero : out std_logic;
+		f : out std_logic_vector(n-1 downto 0)
+	);
+end component;
+
+component ALUcontrol is 
+	generic (
+		n : integer := 16
+	);
+	port (
+		extended : in std_logic_vector(n-1 downto 0);
+		ALUop_in : in std_logic_vector(1 downto 0);
+		ALUop_out : out std_logic_vector(2 downto 0)
+	);
+end component;
+
 component compare is
 	generic(
 		n : integer := 16
@@ -221,32 +247,40 @@ component Register_ID_EX is
 end component;
 
 component Register_EX_MEM is
-	generic (
-		n : INTEGER := 16
+generic (
+		n : INTEGER := 16;
+		addr_size : INTEGER := 3
 	);
 	port (
-		inWB_ctrl : IN std_logic_vector(1 downto 0);
-    		inMEM_ctrl : IN std_logic_vector(2 downto 0);
-  	 	inPC, inALUResult, inRead_data2 : IN std_logic_vector(n-1 downto 0);
-  	 	inRD : IN std_logic_vector(4 downto 0);
-  	 	clk, inZero : IN std_logic;
-  	 	outWB_ctrl : OUT std_logic_vector(1 downto 0);
-  	 	outMEM_ctrl : OUT std_logic_vector(2 downto 0);
-  	 	outPC, outALUResult, outRead_data2 : OUT std_logic_vector(n-1 downto 0);
-  	 	outRD : OUT std_logic_vector(4 downto 0);
-  	 	outZero : OUT std_logic
+		inMemtoReg, inRegWrite : in std_logic;
+		inBranch, inMemRead, inMemWrite : in std_logic;
+  	 	inPC, inALUResult : IN std_logic_vector(n-1 downto 0);
+		inZero : in std_logic;
+		inRead_data2 : IN std_logic_vector(n-1 downto 0);
+  	 	inRD : IN std_logic_vector(addr_size-1 downto 0);
+  	 	clk : IN std_logic;
+		outMemtoReg, outRegWrite : out std_logic;
+		outBranch, outMemRead, outMemWrite : out std_logic;
+  	 	outPC, outALUResult : OUT std_logic_vector(n-1 downto 0);
+		outZero : OUT std_logic;
+		outRead_data2 : OUT std_logic_vector(n-1 downto 0);
+  	 	outRD : OUT std_logic_vector(addr_size-1 downto 0)
 	 );
 end component;
 
 component Register_MEM_WB is
+	generic(
+		n : INTEGER := 16;
+		addr_size : INTEGER := 3
+	);
 	port (
-		inWB_ctrl : IN std_logic_vector(1 downto 0);
-  	 	inData_read, inALUResult : IN std_logic_vector(31 downto 0);
-  	 	inRD : IN std_logic_vector(4 downto 0);
+		inMemtoReg, inRegWrite : in std_logic;
+  	 	inData_read, inALUResult : IN std_logic_vector(n-1 downto 0);
+  	 	inRD : IN std_logic_vector(addr_size-1 downto 0);
   	 	clk : IN std_logic;
-  	 	outWB_ctrl : OUT std_logic_vector(1 downto 0);
-  	 	outData_read, outALUResult : OUT std_logic_vector(31 downto 0);
-  	 	outRD : OUT std_logic_vector(4 downto 0)
+  	 	outMemtoReg, outRegWrite : out std_logic;
+		outData_read, outALUResult : OUT std_logic_vector(n-1 downto 0);
+  	 	outRD : OUT std_logic_vector(addr_size-1 downto 0)
 	 );
 end component;
 
@@ -301,7 +335,27 @@ component Controls is
 end component;
 
 component Execute is
- end component;
+	GENERIC(
+		n : INTEGER := 16;
+		addr_size : INTEGER := 3
+	);
+	PORT(
+		ALUop_from_ID_EX : in std_logic_vector(1 downto 0);
+		ALUSrc_from_ID_EX, RegDst_from_ID_EX, MemReg_from_ID_EX, RegWrite_from_ID_EX : in std_logic;
+		Branch_from_ID_EX, MemRead_from_ID_EX, MemWrite_from_ID_EX : std_logic;
+		extended_from_ID_EX : in std_logic_vector(n-1 downto 0);
+		ID_EX_rs_data, ID_EX_rt_data : in std_logic_vector(n-1 downto 0);
+		EX_MEM_ALUresult, MEM_WB_data : in std_logic_vector(n-1 downto 0);
+		ID_EX_rs_addr, ID_EX_rt_addr : in std_logic_vector(addr_size-1 downto 0);
+		ID_EX_rd_addr, EX_MEM_rd_addr, MEM_WB_rd_addr : in std_logic_vector(addr_size-1 downto 0);
+		EX_MEM_RegWrite, MEM_WB_RegWrite, clock : in std_logic;
+		zero : out std_logic;
+		ALUresult : out std_logic_vector(n-1 downto 0);
+		MemtoReg_to_EX_MEM, RegWrite_to_EX_MEM : out std_logic;
+		Branch_to_EX_MEM, MemRead_to_EX_MEM, MemWrite_to_EX_MEM : out std_logic;
+		rd_addr_to_EX_MEM : out std_logic_vector(addr_size-1 downto 0)
+	);
+end component;
 
 component DataMem is
  end component;
