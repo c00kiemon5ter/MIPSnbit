@@ -10,8 +10,10 @@ entity Control is
 	);
 	port (
 		opcode : in std_logic_vector(opcode_size-1 downto 0);
-		RegDst, ALUSrc, MemtoReg, RegWrite, MemRead, MemWrite, Brnch : out STD_LOGIC;
-		ALUOp : out STD_LOGIC_VECTOR (1 downto 0)
+		RegDst : out std_logic;
+		ALUOp : out STD_LOGIC_VECTOR (1 downto 0);
+		ALUSrc, Brnch, MemRead, MemWrite, MemtoReg, RegWrite : out STD_LOGIC 
+		-- NOTE: ALUSrc isn't used, instead we use the imporoved branch prediction and the 'branch and equal' gate
 	);
 end Control;
 

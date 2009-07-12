@@ -7,15 +7,17 @@ ENTITY Decode IS
 		n : INTEGER := 16;
 		addr_size : INTEGER := 3;
 		opcode_size : INTEGER := 4;
-		imm_size : INTEGER := 6
+		imm_size : INTEGER := 6;
+		reg_num : INTEGER := 8
 	);
 	PORT(
 		instruction, IF_ID_PC, data : in std_logic_vector(n-1 downto 0);
 		RegWrite, isBranch, clock : in std_logic;
 		opcode : out std_logic_vector(opcode_size-1 downto 0);
 		ID_EX_rs_data, ID_EX_rt_data, ID_EX_extended, branch_pc : out std_logic_vector(n-1 downto 0);
-		ID_EX_rd_addr : out std_logic_vector(addr_size-1 downto 0);
-		PCSrc : out std_logic
+		ID_EX_rs_addr, ID_EX_rt_addr, ID_EX_rd_addr : out std_logic_vector(addr_size-1 downto 0);
+		PCSrc : out std_logic;
+		registers : out std_logic_vector(n*reg_num-1 downto 0)
 	);
 END Decode;
 
@@ -33,8 +35,8 @@ BEGIN
 	imm <= instruction(n-opcode_size-2*addr_size-1 downto 0);
 
 	-- the register file
-	Reg_File : RegFile 	generic map(n, addr_size)
-				port map(clock, RegWrite, data, rd_addr, rs_addr, rt_addr, rs_data, rt_data);
+	Reg_File : RegFile 	generic map(n, addr_size, reg_num)
+				port map(clock, RegWrite, data, rd_addr, rs_addr, rt_addr, rs_data, rt_data, registers);
 	
 	-- sign extend unit
 	sign_extend : sign_ext 	generic map(n, imm_size)
@@ -59,34 +61,38 @@ BEGIN
 	ID_EX_rs_data <= rs_data;
 	ID_EX_rt_data <= rt_data;
 	ID_EX_extended <= extended;
+	ID_EX_rs_addr <= rs_addr;
+	ID_EX_rt_addr <= rt_addr;
 	ID_EX_rd_addr <= rd_addr;
 END struct;
 
 
 -- THIS IS ASCII ART !! Enjoy ;-) 
 --   
---   -->--[instruction]---+----[opcode]----->--{_CONTROL_UNIT_}
---                        |                          +------<-------[RegWrite]---<---
---                        |                          |
---                        |                   +-------------+                                       +---<---[isBranch]--<---
---                        +---[rs_addr]--->---|             |--->---[rs_data]--+---[ID_EX_rs_data]  |
---                        |                   |   RegFile   |                  |                    |     +-------------+
---                        +---[rt_addr]--->---|             |          +------------+               +->---|             |
---                        |                   |             |          | comparator |--->---[equal]--->---| PCSrcDecide |--->--[PCSrc]
---                        +---[rd_addr]--->---|             |          +------------+                     +-------------+
---                        |                   |             |                  | 
---                        +---[data]---->-----|             |--->---[rt_data]--+---[ID_EX_rt_data]
---   ---->------[clock]---|--->--------->-----|             |
---                        |                   +-------------+
---                        |
+--   >----[instruction]---+----[opcode]----->--{_CONTROL_UNIT_}
+--                        |              +------------------>------------[ID_EX_rt_addr]------------>
+--                        |              |+----------------->------------[ID_EX_rs_addr]------------>
+--                        |              ||          +------<-------[RegWrite]---<------<
+--                        |              ||          |
+--                        |              ||   +-------------+                                          +--<--[isBranch]-----<
+--                        +---[rs_addr]--(+-->|             |--->---[rs_data]--+---[ID_EX_rs_data]-->  |
+--                        |              |    |   RegFile   |                  |                       |   +-------------+
+--                        +---[rt_addr]--+--->|             |          +------------+                  +-->|             |
+--                        |                   |             |          | comparator |--->---[equal]------->| PCSrcDecide |--->--[PCSrc]-->
+--                        +---[rd_addr]-+---->|             |          +------------+                      +-------------+
+--                        |             |     |             |                  | 
+--   >----->----[data]----(----->-------(---->|             |--->---[rt_data]--+---[ID_EX_rt_data]-->
+--   >----->----[clock]---(----->-------(---->|             |
+--                        |             |     +-------------+
+--                        |             +----------------------->--------[ID_EX_rd_addr]------------>
 --                        |                  +-------------+
---                        +---[imm]------->--| sign_extend |--->---[extended]--+----[ID_EX_extended]
+--                        +---[imm]--------->| sign_extend |--->---[extended]--+----[ID_EX_extended]-->
 --                                           +-------------+                   |
 --                                                                             |
 --                                                                         +------+                  +-------------+
---                                                                         | SLL2 |--->--[shifted]-->| BranchAdder |--->--[branch_pc]
+--                                                                         | SLL2 |--->--[shifted]-->| BranchAdder |--->--[branch_pc]-->
 --                                                                         +------+  +--[IF_ID_PC]-->|             |
 --                                                                                   |               +-------------+
---                                                                          ---->----+
+--                                                                         >---->----+
 --
 

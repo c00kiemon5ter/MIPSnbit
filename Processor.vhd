@@ -7,12 +7,13 @@ ENTITY Processor IS
 		n : INTEGER := 16;
 		addr_size : INTEGER := 3;
 		opcode_size : INTEGER := 4;
-		imm_size : INTEGER := 6
+		imm_size : INTEGER := 6;
+		reg_num : INTEGER := 8
 	);
 	PORT(
 		pipe_clock : in std_logic;		 -- IF_ID | ID_DEC | DEC_EX | EX_MEM | MEM_WB + !PC 
 		clock : in std_logic;			 -- used by all other units
-		regOUT : out std_logic_vector(n*8-1+n downto 0); 	 -- pros othoni (REGs + PC) | 127+16
+		regOUT : out std_logic_vector(n*reg_num-1+n downto 0); 	 -- pros othoni (REGs + PC) | 127+16
 		instructionAD : out std_logic_vector(n-1 downto 0);	 -- PC_OUT
 		instr : in std_logic_vector(n-1 downto 0):= x"0000";	 -- INSTR_MEM_OUT | insrtuction
 		dataAD : out std_logic_vector(n-1 downto 0);		 -- DATA_MEM_Address_to_{write|read}
@@ -22,110 +23,76 @@ ENTITY Processor IS
 	);
 END Processor;
 
-
 ARCHITECTURE structure OF Processor IS
-
-component Register_IF_ID is
-	generic (
-		n : INTEGER := 16
-	);
-	port (
-  		inPC, inInstruction : IN std_logic_vector(n-1 downto 0);
-  		clk, IF_Flush, IF_ID_Write : IN std_logic;
-  		outPC, outInstruction : OUT std_logic_vector(n-1 downto 0)
-	 );
-end component;
-
-	signal PCout, nextPC, IF_ID_PC, branch_address, instruction, muxPCout : std_logic_vector(n-1 downto 0);
-	signal pc_carry, PCsrc, IF_ID_Write, updatePC : std_logic;
-	
-	signal write_data, rs_data, rt_data, extnd, shifted : std_logic_vector(n-1 downto 0);
-	signal equal, branch_carry : std_logic;
-	
-	signal RegDst, ALUSrc, MemtoReg, RegWrite, MemRead, MemWrite, Branch, PCupdate, reset, flush, ID_EX_MemRead : std_logic;
-	signal ID_EX_RT_address : std_logic_vector(addr_size-1 downto 0);
-	signal ALUop, fls_wb : std_logic_vector(1 downto 0);
-	signal fls_ex : std_logic_vector(3 downto 0);
-	signal fls_mem : std_logic_vector(2 downto 0);
+	-- Fetch use
+	signal PCSrc, PCWrite : std_logic;
+	signal branch_pc, PCtoIMem, PC_to_IF_ID : std_logic_vector(n-1 downto 0);
+	-- IF_ID_Reg
+	signal IF_ID_Flush, IF_ID_Write : std_logic;
+	signal PC_from_IF_ID, instruction : std_logic_vector(n-1 downto 0);
+	-- Decode use
+	signal RegWrite : std_logic;
+	signal data, rs_data_to_ID_EX, rt_data_to_ID_EX, extended_to_ID_EX : std_logic_vector(n-1 downto 0);
+	signal rs_addr_to_ID_EX, rt_addr_to_ID_EX, rd_addr_to_ID_EX : std_logic_vector(addr_size-1 downto 0);
+	signal registers : std_logic_vector(n*reg_num-1 downto 0); 
+	-- Control use
+	signal opcode : std_logic_vector(opcode_size-1 downto 0);
+	signal PCSrc_no_use : std_logic;
+	signal RegDst_to_ID_EX : std_logic;
+	signal ALUop_to_ID_EX : std_logic_vector(1 downto 0);
+	signal ALUSrc_to_ID_EX, Branch_to_ID_EX, MemRead_to_ID_EX : std_logic;
+	signal MemWrite_to_ID_EX, MemtoReg_to_ID_EX, RegWrite_to_ID_EX : std_logic;
+	-- ID_EX_Reg
+	signal MemtoReg_from_ID_EX, RegWrite_from_ID_EX : std_logic;
+	signal Branch_from_ID_EX, MemRead_from_ID_EX, MemWrite_from_ID_EX : std_logic;
+	signal RegDst_from_ID_EX, ALUSrc_from_ID_EX : std_logic;
+	signal ALUop_from_ID_EX : std_logic_vector(1 downto 0);
+	signal PC_from_ID_EX, rs_data_from_ID_EX, rt_data_from_ID_EX, extended_from_ID_EX : std_logic_vector(n-1 downto 0);
+	signal rs_addr_from_ID_EX, rt_addr_from_ID_EX, rd_addr_from_ID_EX : std_logic_vector(addr_size-1 downto 0);
+	-- Execute use
+	-- WriteBack use
 BEGIN
 
-	-- -- ----------- -- --
-	-- --    FETCH    -- --
-	-- -- ----------- -- --
-
-	-- write to pc or not ?
-	PCreg : PC 	generic map (n)
-			port map (NOT pipe_clock, updatePC, muxPCout, PCout);
-	-- select between PC+4 or Branch_Address
-	MUX_2_TO_1 : mux2to1 	generic map(n)
-				port map(nextPC, branch_address, PCsrc, muxPCout);
-	-- add +4 to current pc
-	PC_Adder : Adder 	generic map (n)
-				port map (PCout, (n-1 downto 3 => '0') & "100", pc_carry, nextPC);
-	-- give Instruction_Mem the next PC address to fetch next Instruction(instr)
-	instructionAD <= PCout;
-	-- store values in IF_ID_Reg
-	IF_ID : Register_IF_ID 	generic map(n)
-				port map(nextPC, instr, pipe_clock, IF_ID_Write, PCupdate, IF_ID_PC, instruction);
+	FetchStage : Fetch 	generic map(n)
+				port map(PCSrc, PCWrite, branch_pc, pipe_clock, instructionAD, PC_to_IF_ID);
 	
+	IF_ID_Register : Register_IF_ID 	generic map(n)
+						port map(PC_to_IF_ID, instr, pipe_clock, IF_ID_Flush, IF_ID_Write, PC_from_IF_ID, instruction);
 
+	DecodeStage : Decode 	generic map(n, addr_size, opcode_size, imm_size, reg_num)
+				port map(instruction, PC_from_IF_ID, data, RegWrite, Branch_from_ID_EX, clock,
+					 opcode, rs_data_to_ID_EX, rt_data_to_ID_EX, extended_to_ID_EX, branch_pc, 
+					 rs_addr_to_ID_EX, rt_addr_to_ID_EX, rd_addr_to_ID_EX, PCSrc, registers);
+	regOUT <= registers & PC_to_IF_ID;
 
+	ControlUnits : Controls generic map(n, addr_size, opcode_size)
+				port map(instruction, rt_addr_from_ID_EX, MemRead_from_ID_EX, clock, 
+					 PCWrite, PCSrc_no_use, IF_ID_Write, 
+					 RegDst_to_ID_EX, ALUop_to_ID_EX, ALUSrc_to_ID_EX, 
+					 Branch_to_ID_EX, MemRead_to_ID_EX, MemWrite_to_ID_EX,
+					 MemtoReg_to_ID_EX, RegWrite_to_ID_EX);
 
-	-- -- ------------ -- --
-	-- --    DECODE    -- --
-	-- -- ------------ -- --
+	ID_EX_Register : Register_ID_EX		generic map(n, addr_size)
+						port map(MemtoReg_to_ID_EX, RegWrite_to_ID_EX,
+							 Branch_to_ID_EX, MemRead_to_ID_EX, MemWrite_to_ID_EX,
+							 RegDst_to_ID_EX, ALUop_to_ID_EX, ALUSrc_to_ID_EX,
+							 PC_from_IF_ID, rs_data_to_ID_EX, rt_data_to_ID_EX, extended_to_ID_EX, 
+							 rs_addr_to_ID_EX, rt_addr_to_ID_EX, rd_addr_to_ID_EX, pipe_clock,
+							 MemtoReg_from_ID_EX, RegWrite_from_ID_EX,
+							 Branch_from_ID_EX, MemRead_from_ID_EX, MemWrite_from_ID_EX,
+							 RegDst_from_ID_EX, ALUop_from_ID_EX, ALUSrc_from_ID_EX,
+							 PC_from_ID_EX, rs_data_from_ID_EX, rt_data_from_ID_EX, extended_from_ID_EX,
+							 rs_addr_from_ID_EX, rt_addr_from_ID_EX, rd_addr_from_ID_EX);
+
+--	ExecuteStage : Execute 	generic map()
+--				port map;
 	
-	-- our registers
-	RegisterFile : RegFile 	generic map(n, addr_size)
-				port map(clock, RegWrite, write_data, instruction(n-opcode_size-1 downto n-opcode_size-addr_size), 
-								instruction(n-opcode_size-addr_size-1 downto n-opcode_size-2*addr_size), 
-								instruction(n-opcode_size-2*addr_size-1 downto n-opcode_size-3*addr_size), 
-								rs_data, rt_data);
-	-- sign extension for immidiate values
-	sing_extension : sign_ext 	generic map(n,imm_size)
-					port map(instruction(imm_size-1 downto 0), extnd);
-	
-	-- NOTE: We could skip the following and use the zero_out from the ALU in 'Execute' stage
-	-- NOTE: and be slow, lol, that's weak, we are fast, we are too fast,..
-	-- Check if the read-registers' values are the same, that'd be zero in ALU
-	comparator : compare 	generic map(n)
-				port map(rs_data, rt_data, equal);
-	-- select the next command address according to the previous prediction
-	PCsrcCheck : AndGate 	port map(equal, fls_mem(2), PCsrc); -- fls_mem(2) is Branch
-	-- align the address, shift left logical by two
-	SLL2 : shift_left_2 	generic map(n)
-				port map(extnd, shifted);
-	-- Adder to calculate branch address
-	BranchAdder : Adder 	generic map(n)
-				port map(shifted, IF_ID_PC, branch_carry, branch_address); 
+--	EX_MEM_Register : Register_EX_MEM 	generic map()
+--						port map();
 
+	-- MemStage ? etc
 
-
-
-	-- -- -------------- -- --
-	-- --    CONTROLS    -- --
-	-- -- -------------- -- --
-	
-	-- The Control
-	ControlUnit : Control 	generic map(opcode_size)
-				port map(	instruction(n-1 downto n-opcode_size), 
-						RegDst, ALUSrc, MemtoReg, RegWrite, MemRead, MemWrite, Branch, ALUop);
-	-- Flush Control 
-	FlushCtrlUnit : FlushCtrl 	port map(	RegWrite & MemtoReg, 
-							Branch & MemRead & MemWrite, 
-							RegDst & ALUop & ALUSrc, 
-							flush, fls_wb, fls_mem, fls_ex);
-	-- Hazard Unit
-	HazardUnit : hazard 	port map(	instruction(n-opcode_size-1 downto n-opcode_size-addr_size), 
-						instruction(n-opcode_size-addr_size-1 downto n-opcode_size-2*addr_size), 
-						ID_EX_RT_Address, Branch, ID_EX_MemRead, reset, clock, 
-						updatePC, PCupdate, IF_ID_Write, flush);
-	
-	
-	
-	-- -- ------------- -- --
-	-- --    EXECUTE    -- --
-	-- -- ------------- -- --
-
+--	MEM_WB_Register : Register_MEM_WB	generic map()
+--						port map();
 END structure;
 

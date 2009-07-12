@@ -6,6 +6,8 @@ use ieee.std_logic_1164.all;
 
 package components is 
 
+-- PARTS --
+
 component mux3to1 is
 	generic (
 		n : integer := 16
@@ -98,13 +100,15 @@ end component;
 component RegFile is
 	generic ( 
 		n : integer := 16;
-		k : INTEGER := 3
+		k : INTEGER := 3;
+		reg_num : INTEGER := 8
 	);
 	port (	
 		clock, RegWrite : in std_logic;
 		data : in std_logic_vector (n-1 downto 0);
 		rd_address, rs_address, rt_address : in std_logic_vector (k-1 downto 0);
-		rs_out, rt_out : out std_logic_vector (n-1 downto 0)
+		rs_out, rt_out : out std_logic_vector (n-1 downto 0);
+		registers_out : out std_logic_vector(n*reg_num-1 downto 0)
 	);
 end component;
 
@@ -131,36 +135,41 @@ component Control is
 	);
 	port (
 		opcode : in std_logic_vector(opcode_size-1 downto 0);
-		RegDst, ALUSrc, MemtoReg, RegWrite, MemRead, MemWrite, Brnch : out STD_LOGIC;
-		ALUOp : out STD_LOGIC_VECTOR (1 downto 0)
+		RegDst : out std_logic;
+		ALUOp : out STD_LOGIC_VECTOR (1 downto 0);
+		ALUSrc, Brnch, MemRead, MemWrite, MemtoReg, RegWrite : out STD_LOGIC 
 	);
 end component;
 
 component FlushCtrl is
 	port (
-		in_wb : in std_logic_vector(1 downto 0);
-		in_mem : in std_logic_vector(2 downto 0);
-		in_ex : in std_logic_vector(3 downto 0);
-		sel : IN STD_LOGIC;
-		out_wb : out std_logic_vector(1 downto 0);
-		out_mem : out std_logic_vector(2 downto 0);
-		out_ex : out std_logic_vector(3 downto 0)
+		inMemtoReg, inRegWrite : in std_logic;
+		inBranch, inMemRead, inMemWrite : in std_logic;
+		inRegDst : in std_logic;
+		inALUop : in std_logic_vector(1 downto 0);
+		inALUSrc : in std_logic;
+		flush : IN STD_LOGIC;
+		outMemtoReg, outRegWrite : out std_logic;
+		outBranch, outMemRead, outMemWrite : out std_logic;
+		outRegDst : out std_logic;
+		outALUop : out std_logic_vector(1 downto 0);
+		outALUSrc : out std_logic
 	);
 end component;
 
-component hazard is
+component Hazard is
 	port (
 		rs : in STD_LOGIC_VECTOR(2 downto 0);  	   -- if/id source register s
 		rt : in STD_LOGIC_VECTOR(2 downto 0);  	   -- if/id source register t
 		prevRt : in STD_LOGIC_VECTOR(2 downto 0);  -- id/ex source register t
-		branchTaken : in STD_LOGIC;  -- is a branch being taken
-		wasLw : in STD_LOGIC;        -- if load word was performed
-		reset : in STD_LOGIC;        -- reset all values, no hazard
-		clk : in STD_LOGIC;	
-		pcUpdate : out STD_LOGIC;    -- if PC should update
-		pcSel : out STD_LOGIC;       -- update the pc with +4 or branch
-		if_id_clr : out STD_LOGIC;   -- clear the If/Id register
-		flush : out STD_LOGIC  	     -- if flush should take place
+		isBranch : in STD_LOGIC; 	-- if a branch is being taken
+		wasLw : in STD_LOGIC; 		-- if load word was performed :: If ( ID_EX_Reg_MemRead='1' ) 
+		reset : in STD_LOGIC; 		-- reset all values, no hazard
+		clk : in STD_LOGIC;
+		pcUpdate : out STD_LOGIC; 	-- if PC should update
+		pcSel : out STD_LOGIC; 		-- update the pc with +4 or branch
+		IF_ID_Clear : out STD_LOGIC;	-- clear the If/Id register
+		flush : out STD_LOGIC 		-- if flush should take place
 	);
 end component;
 
@@ -174,6 +183,131 @@ component compare is
 	);
 end component;
 
+-- PIPE REGISTERS --
+
+component Register_IF_ID is
+	generic (
+		n : INTEGER := 16
+	);
+	port (
+  		inPC, inInstruction : IN std_logic_vector(n-1 downto 0);
+  		clk, IF_Flush, IF_ID_Write : IN std_logic;
+ 		outPC, outInstruction : OUT std_logic_vector(n-1 downto 0)
+	);
+end component;
+
+component Register_ID_EX is
+	generic (
+		n : INTEGER := 16;
+		addr_size : INTEGER := 4
+	);
+	port (
+		inMemtoReg, inRegWrite : in std_logic;
+		inBranch, inMemRead, inMemWrite : in std_logic;
+		inRegDst : in std_logic;
+		inALUop : in std_logic_vector(1 downto 0);
+		inALUSrc : in std_logic;
+  		inPC, inRead_data1, inRead_data2, inExtnd : IN std_logic_vector(n-1 downto 0);
+  		inRS, inRT, inRD : IN std_logic_vector(addr_size-1 downto 0);
+  		clk : IN std_logic;
+		outMemtoReg, outRegWrite : out std_logic;
+		outBranch, outMemRead, outMemWrite : out std_logic;
+		outRegDst : out std_logic;
+		outALUop : out std_logic_vector(1 downto 0);
+		outALUSrc : out std_logic;
+		outPC, outRead_data1, outRead_data2, outExtnd : OUT std_logic_vector(n-1 downto 0);
+  		outRS, outRT, outRD : OUT std_logic_vector(addr_size-1 downto 0)
+	);
+end component;
+
+component Register_EX_MEM is
+	generic (
+		n : INTEGER := 16
+	);
+	port (
+		inWB_ctrl : IN std_logic_vector(1 downto 0);
+    		inMEM_ctrl : IN std_logic_vector(2 downto 0);
+  	 	inPC, inALUResult, inRead_data2 : IN std_logic_vector(n-1 downto 0);
+  	 	inRD : IN std_logic_vector(4 downto 0);
+  	 	clk, inZero : IN std_logic;
+  	 	outWB_ctrl : OUT std_logic_vector(1 downto 0);
+  	 	outMEM_ctrl : OUT std_logic_vector(2 downto 0);
+  	 	outPC, outALUResult, outRead_data2 : OUT std_logic_vector(n-1 downto 0);
+  	 	outRD : OUT std_logic_vector(4 downto 0);
+  	 	outZero : OUT std_logic
+	 );
+end component;
+
+component Register_MEM_WB is
+	port (
+		inWB_ctrl : IN std_logic_vector(1 downto 0);
+  	 	inData_read, inALUResult : IN std_logic_vector(31 downto 0);
+  	 	inRD : IN std_logic_vector(4 downto 0);
+  	 	clk : IN std_logic;
+  	 	outWB_ctrl : OUT std_logic_vector(1 downto 0);
+  	 	outData_read, outALUResult : OUT std_logic_vector(31 downto 0);
+  	 	outRD : OUT std_logic_vector(4 downto 0)
+	 );
+end component;
+
+-- STAGES --
+
+component Fetch is
+	generic(
+		n : INTEGER := 16
+	);
+	port(
+		PCSrc, PCWrite : in std_logic;
+		branch_pc : in std_logic_vector(n-1 downto 0);
+		pipe_clock : in std_logic;
+		PCtoIMem, PCtoIF_ID : out std_logic_vector(n-1 downto 0)
+	);
+end component;
+
+component Decode is
+	GENERIC(
+		n : INTEGER := 16;
+		addr_size : INTEGER := 3;
+		opcode_size : INTEGER := 4;
+		imm_size : INTEGER := 6;
+		reg_num : INTEGER := 8
+	);
+	PORT(
+		instruction, IF_ID_PC, data : in std_logic_vector(n-1 downto 0);
+		RegWrite, isBranch, clock : in std_logic;
+		opcode : out std_logic_vector(opcode_size-1 downto 0);
+		ID_EX_rs_data, ID_EX_rt_data, ID_EX_extended, branch_pc : out std_logic_vector(n-1 downto 0);
+		ID_EX_rs_addr, ID_EX_rt_addr, ID_EX_rd_addr : out std_logic_vector(addr_size-1 downto 0);
+		PCSrc : out std_logic;
+		registers : out std_logic_vector(n*reg_num-1 downto 0)
+	);
+end component;
+
+component Controls is
+	GENERIC(
+		n : INTEGER := 16;
+		addr_size : INTEGER := 3;
+		opcode_size : INTEGER := 4
+	);
+	PORT(
+		instruction : in std_logic_vector(n-1 downto 0);
+		ID_EX_rt_addr : in std_logic_vector(addr_size-1 downto 0);
+		prev_ID_EX_MemRead, clock : in std_logic;  	-- if previously we had a 'lw' command
+		PCWrite, PCSrc, IF_ID_Write : out std_logic;
+		ID_EX_RegDst : out std_logic;
+		ID_EX_ALUop : out std_logic_vector(1 downto 0);
+		ID_EX_ALUSrc, ID_EX_Branch, ID_EX_MemRead, ID_EX_MemWrite, ID_EX_MemtoReg, ID_EX_RegWrite : out std_logic
+	);
+end component;
+
+component Execute is
+ end component;
+
+component DataMem is
+ end component;
+
+component WriteBack is
+ end component;
 
 end components;
 
