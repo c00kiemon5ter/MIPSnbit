@@ -9,7 +9,7 @@ entity fetch is
 	);
 	port(
 		PCSrc, updatePC : in std_logic;
-		branch_address : in std_logic_vector(n-1 downto 0);
+		branch_pc : in std_logic_vector(n-1 downto 0);
 		pipe_clock : in std_logic;
 		PCtoIMem, PCtoIF_ID : out std_logic_vector(n-1 downto 0)
 	);
@@ -27,9 +27,9 @@ begin
 	-- the pc register
 	PCreg : PC 	generic map (n)
 			port map (NOT pipe_clock, updatePC, muxPCout, PCval);
-	-- select between PC+4(nextPC) or branch address(branch_address)
+	-- select between PC+4(nextPC) or branch address(branch_pc)
 	PC_MUX : mux2to1 	generic map(n)
-				port map(nextPC, branch_address, PCSrc, muxPCout);
+				port map(nextPC, branch_pc, PCSrc, muxPCout);
 	-- add +4 to current pc
 	PC_adder : Adder 	generic map (n)
 				port map (PCval, (n-1 downto 3 => '0') & "100", pc_carry, nextPC);
@@ -40,7 +40,7 @@ end behav;
 
 -- THIS IS ASCII ART !! Enjoy ;-) 
 --
---   +-----------<------------[branch_address]--------<---------------<------------------------{_DECODE_STAGE_} 
+--   +-----------<------------[branch_pc]-------------<---------------<------------------------{_DECODE_STAGE_} 
 --   | +---------------<---------------[nextPC]------------<------------------+
 --   | |                                                                      |
 --   | |                                                 +----------+         |

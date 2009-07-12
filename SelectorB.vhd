@@ -6,7 +6,7 @@ use ieee.std_logic_1164.all;
 use work.components.mux2to1;
 use work.components.mux3to1;
 
-entity selectorB is
+entity SelectorB is
 	generic ( 
 		n : integer := 16 
 	);
@@ -15,10 +15,10 @@ entity selectorB is
 		selB : in std_logic_vector(1 downto 0);
 		q : out std_logic_vector(n-1 downto 0)
 	);
-end selectorB;
+end SelectorB;
 
 
-architecture behavior of selectorB is
+architecture behavior of SelectorB is
 begin
 	selecetorB : process(selB)
 	begin

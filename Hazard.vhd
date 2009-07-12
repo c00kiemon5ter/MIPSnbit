@@ -4,7 +4,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 
-entity hazard is
+entity Hazard is
 	port (
 		rs : in STD_LOGIC_VECTOR(2 downto 0);  	   -- if/id source register s
 		rt : in STD_LOGIC_VECTOR(2 downto 0);  	   -- if/id source register t
@@ -18,13 +18,13 @@ entity hazard is
 		if_id_clr : out STD_LOGIC;   -- clear the If/Id register
 		flush : out STD_LOGIC  	     -- if flush should take place
 	);
-end hazard;
+end Hazard;
 
 
-architecture behavior of hazard is
+architecture behavior of Hazard is
 	signal clearFlag : std_logic;
 begin
-	hazard_detect : process(rs, rt, prevRt, branchTaken, wasLw, reset, clk)
+	Hazard_detect : process(rs, rt, prevRt, branchTaken, wasLw, reset, clk)
 	begin
 		if (reset='0') then  -- reset all values
 			clearFlag <= '0';
@@ -37,7 +37,7 @@ begin
 				pcUpdate <= '0';  -- do not update pc
 				pcSel <= '0';     -- next pc value is pc+4
 				flush <= '1';	 -- flush instruction
-			else  -- reset, all normal, no hazard
+			else  -- reset, all normal, no Hazard
 				clearFlag <= '0';
 				pcUpdate <= '1'; -- update the pc
 				pcSel <= '0';    -- next pc value should be pc+4
@@ -54,7 +54,7 @@ begin
 			pcSel <= '0';    -- next pc value should be pc+4
 			flush <= '0';	 -- do not flush, use next instruction normally
 		end if;
-	end process hazard_detect;
+	end process Hazard_detect;
 	
 	-- handle updating the clear flag
 	clear_id_if_reg : process( clearFlag, clk, reset ) begin

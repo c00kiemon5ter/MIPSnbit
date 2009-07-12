@@ -22,6 +22,6 @@ begin
 	-- ext(k-1 downto 0) <= imm;
 	-- check the first bit and set the rest bits as that one
 	-- ext(n-1 downto k) <= (n-1 downto k => imm(k-1));	
-	ext <=(n-1 downto k => imm(k-1)) & (imm);
+	ext <= (n-1 downto k => imm(k-1)) & (imm);
 end behavior;
 
