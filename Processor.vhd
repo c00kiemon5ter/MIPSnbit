@@ -60,32 +60,33 @@ ARCHITECTURE structure OF Processor IS
 	signal PC_from_EX_MEM, ALUresult_from_EX_MEM, rt_data_from_EX_MEM : std_logic_vector(n-1 downto 0);
 	signal zero_from_EX_MEM : std_logic;
 	signal rd_addr_from_EX_MEM : std_logic_vector(addr_size-1 downto 0);
-	-- WriteBack use
 	-- MEM_WB_Reg
-	signal data_from_MEM_WB : std_logic_vector(n-1 downto 0);
+	signal data_from_MEM_WB, ALUresult_from_MEM_WB : std_logic_vector(n-1 downto 0);
 	signal rd_addr_from_MEM_WB : std_logic_vector(addr_size-1 downto 0);
-	signal RegWrite_from_MEM_WB : std_logic;
+	signal MemtoReg_from_MEM_WB, RegWrite_from_MEM_WB : std_logic;
 BEGIN
-
+	-- Instruction Fetch Stage
 	FetchStage : Fetch 	generic map(n)
 				port map(PCSrc, PCWrite, branch_pc, pipe_clock, instructionAD, PC_to_IF_ID);
-	
+	-- IF/ID Pipe Register
 	IF_ID_Register : Register_IF_ID 	generic map(n)
 						port map(PC_to_IF_ID, instr, pipe_clock, IF_ID_Flush, IF_ID_Write, PC_from_IF_ID, instruction);
-
+	-- Decode Instruction Stage
 	DecodeStage : Decode 	generic map(n, addr_size, opcode_size, imm_size, reg_num)
 				port map(instruction, PC_from_IF_ID, data, RegWrite, Branch_from_ID_EX, clock,
 					 opcode, rs_data_to_ID_EX, rt_data_to_ID_EX, extended_to_ID_EX, branch_pc, 
 					 rs_addr_to_ID_EX, rt_addr_to_ID_EX, rd_addr_to_ID_EX, PCSrc, registers);
+	-- All registers output pin
 	regOUT <= registers & PC_to_IF_ID;
 
+	-- Control Units : Control, Hazard, Flush Mux
 	ControlUnits : Controls generic map(n, addr_size, opcode_size)
 				port map(instruction, rt_addr_from_ID_EX, MemRead_from_ID_EX, clock, 
 					 PCWrite, PCSrc_no_use, IF_ID_Write, 
 					 RegDst_to_ID_EX, ALUop_to_ID_EX, ALUSrc_to_ID_EX, 
 					 Branch_to_ID_EX, MemRead_to_ID_EX, MemWrite_to_ID_EX,
 					 MemtoReg_to_ID_EX, RegWrite_to_ID_EX);
-
+	-- ID/EX Pipe Register
 	ID_EX_Register : Register_ID_EX		generic map(n, addr_size)
 						port map(MemtoReg_to_ID_EX, RegWrite_to_ID_EX,
 							 Branch_to_ID_EX, MemRead_to_ID_EX, MemWrite_to_ID_EX,
@@ -97,7 +98,7 @@ BEGIN
 							 RegDst_from_ID_EX, ALUop_from_ID_EX, ALUSrc_from_ID_EX,
 							 PC_from_ID_EX, rs_data_from_ID_EX, rt_data_from_ID_EX, extended_from_ID_EX,
 							 rs_addr_from_ID_EX, rt_addr_from_ID_EX, rd_addr_from_ID_EX);
-
+	-- Execute Stage
 	ExecuteStage : Execute 	generic map(n, addr_size)
 				port map(ALUop_from_ID_EX, ALUSrc_from_ID_EX, RegDst_from_ID_EX, 
 					 MemtoReg_from_ID_EX, RegWrite_from_ID_EX, 
@@ -111,20 +112,30 @@ BEGIN
 					 MemtoReg_to_EX_MEM, RegWrite_to_EX_MEM, 
 					 Branch_to_EX_MEM, MemRead_to_EX_MEM, MemWrite_to_EX_MEM,
 					 rd_addr_to_EX_MEM);
-		
+	
+	-- Ex/Mem Pipe Register
 	EX_MEM_Register : Register_EX_MEM 	generic map(n, addr_size)
 						port map(MemtoReg_to_EX_MEM, RegWrite_to_EX_MEM, 
 							 Branch_to_EX_MEM, MemRead_to_EX_MEM, MemWrite_to_EX_MEM,
 							 PC_from_ID_EX, ALUresult_to_EX_MEM, zero_to_EX_MEM, 
-							 rt_data_from_ID_EX, rd_addr_to_EX_MEM, clock, 
+							 rt_data_from_ID_EX, rd_addr_to_EX_MEM, pipe_clock, 
 							 MemtoReg_from_EX_MEM, RegWrite_from_EX_MEM,
 							 Branch_from_EX_MEM, MemRead_from_EX_MEM, MemWrite_from_EX_MEM,
 							 PC_from_EX_MEM, ALUresult_from_EX_MEM, zero_from_EX_MEM, 
 							 rt_data_from_EX_MEM, rd_addr_from_EX_MEM);
-
-	-- MemStage ? etc
-
---	MEM_WB_Register : Register_MEM_WB	generic map()
---						port map();
+	-- DataMemory
+	DataWriteFlag <= MemWrite_from_EX_MEM;
+	toData <= rt_data_from_EX_MEM;
+	dataAD <= ALUresult_from_EX_MEM;
+	
+	-- MEM/WB Pipe Register
+	MEM_WB_Register : Register_MEM_WB	generic map(n, addr_size)
+						port map(MemtoReg_from_EX_MEM, RegWrite_from_EX_MEM, 
+							 fromData, ALUresult_from_EX_MEM, rd_addr_from_EX_MEM, 
+							 pipe_clock, MemtoReg_from_MEM_WB, RegWrite_from_MEM_WB, 
+							 data_from_MEM_WB, ALUresult_from_MEM_WB, rd_addr_from_MEM_WB);
+	-- WriteBack Stage
+	WBStage : mux2to1	generic map(n)
+				port map(data_from_MEM_WB, ALUresult_from_MEM_WB, MemtoReg_from_MEM_WB, data);
 END structure;
 
