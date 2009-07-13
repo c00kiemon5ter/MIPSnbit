@@ -73,7 +73,7 @@ BEGIN
 						port map(PC_to_IF_ID, instr, pipe_clock, IF_ID_Flush, IF_ID_Write, PC_from_IF_ID, instruction);
 	-- Decode Instruction Stage
 	DecodeStage : Decode 	generic map(n, addr_size, opcode_size, imm_size, reg_num)
-				port map(instruction, PC_from_IF_ID, data, RegWrite, Branch_from_ID_EX, clock,
+				port map(instruction, PC_from_IF_ID, data, rd_addr_from_MEM_WB, RegWrite, Branch_from_ID_EX, clock,
 					 opcode, rs_data_to_ID_EX, rt_data_to_ID_EX, extended_to_ID_EX, branch_pc, 
 					 rs_addr_to_ID_EX, rt_addr_to_ID_EX, rd_addr_to_ID_EX, PCSrc, registers);
 	-- All registers output pin

@@ -308,6 +308,7 @@ component Decode is
 	);
 	PORT(
 		instruction, IF_ID_PC, data : in std_logic_vector(n-1 downto 0);
+		rd_addr_from_MEM_WB : in std_logic_vector(addr_size-1 downto 0);
 		RegWrite, isBranch, clock : in std_logic;
 		opcode : out std_logic_vector(opcode_size-1 downto 0);
 		ID_EX_rs_data, ID_EX_rt_data, ID_EX_extended, branch_pc : out std_logic_vector(n-1 downto 0);

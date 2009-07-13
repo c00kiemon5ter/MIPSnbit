@@ -12,6 +12,7 @@ ENTITY Decode IS
 	);
 	PORT(
 		instruction, IF_ID_PC, data : in std_logic_vector(n-1 downto 0);
+		rd_addr_from_MEM_WB : in std_logic_vector(addr_size-1 downto 0);
 		RegWrite, isBranch, clock : in std_logic;
 		opcode : out std_logic_vector(opcode_size-1 downto 0);
 		ID_EX_rs_data, ID_EX_rt_data, ID_EX_extended, branch_pc : out std_logic_vector(n-1 downto 0);
@@ -36,7 +37,7 @@ BEGIN
 
 	-- the register file
 	Reg_File : RegFile 	generic map(n, addr_size, reg_num)
-				port map(clock, RegWrite, data, rd_addr, rs_addr, rt_addr, rs_data, rt_data, registers);
+				port map(clock, RegWrite, data, rd_addr_from_MEM_WB, rs_addr, rt_addr, rs_data, rt_data, registers);
 	
 	-- sign extend unit
 	sign_extend : sign_ext 	generic map(n, imm_size)
@@ -79,12 +80,12 @@ END struct;
 --                        |              |    |   RegFile   |                  |                       |   +-------------+
 --                        +---[rt_addr]--+--->|             |          +------------+                  +-->|             |
 --                        |                   |             |          | comparator |--->---[equal]------->| PCSrcDecide |--->--[PCSrc]-->
---                        +---[rd_addr]-+---->|             |          +------------+                      +-------------+
---                        |             |     |             |                  | 
---   >----->----[data]----(----->-------(---->|             |--->---[rt_data]--+---[ID_EX_rt_data]-->
---   >----->----[clock]---(----->-------(---->|             |
---                        |             |     +-------------+
---                        |             +----------------------->--------[ID_EX_rd_addr]------------>
+--   >----->-------[rd_addr_from_MEM_WB]----->|             |          +------------+                      +-------------+
+--                        |                   |             |                  | 
+--   >----->----[data]----(----->------------>|             |--->---[rt_data]--+---[ID_EX_rt_data]-->
+--   >----->----[clock]---(----->------------>|             |
+--                        |                   +-------------+
+--                        +----->------->----------------------->--------[ID_EX_rd_addr]------------>
 --                        |                  +-------------+
 --                        +---[imm]--------->| sign_extend |--->---[extended]--+----[ID_EX_extended]-->
 --                                           +-------------+                   |

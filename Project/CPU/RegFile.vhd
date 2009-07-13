@@ -40,11 +40,12 @@ BEGIN
 
 	PROCESS (clock)
 	BEGIN
-		IF clock = '1' AND clock'event THEN	-- write at the second half 
+		IF clock = '1' AND clock'event THEN		   -- write at the second half 
 			IF RegWrite = '1' AND sig_rd_add /= 0 THEN -- we never write to reg$zero
 				registers(sig_rd_add) <= data;
 			END IF;
 		END IF;
+		-- All registers out
 		reg_out(n-1 downto 0) <= (OTHERS => '0');
 		FOR i IN 1 TO reg_num-1 LOOP
 			reg_out((i+1)*n-1 downto i*n) <=  registers(i);
