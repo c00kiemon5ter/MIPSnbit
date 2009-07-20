@@ -1,7 +1,0 @@
-<?xml version="1.0" ?>
-<LOG_ROOT>
-	<PROJECT NAME="plaketa">
-		<CBX_INST_ENTRY INSTANCE_NAME="|plaketa|data_memory:data|altsyncram:altsyncram_component" CBX_FILE_NAME="altsyncram_8ed1.tdf"/>
-		<CBX_INST_ENTRY INSTANCE_NAME="|plaketa|instruction_memory:inm|altsyncram:altsyncram_component" CBX_FILE_NAME="altsyncram_d691.tdf"/>
-	</PROJECT>
-</LOG_ROOT>
